@@ -1,21 +1,32 @@
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-
+import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { NavigationContainer } from "@react-navigation/native";
+import React from "react";
+import { BookSearchScreen, BookTransactionScreen } from "./Screens";
+const BottomTab = createBottomTabNavigator();
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+	return (
+		<NavigationContainer>
+			<BottomTab.Navigator>
+				<BottomTab.Screen
+					name="search"
+					component={BookSearchScreen}
+					options={{
+						tabBarIcon: () => <Ionicons name="search" size={24} color="grey" />,
+						tabBarLabel: () => null,
+					}}
+				/>
+				<BottomTab.Screen
+					name="transaction"
+					component={BookTransactionScreen}
+					options={{
+						tabBarIcon: () => (
+							<FontAwesome5 name="hand-holding" size={24} color="grey" />
+						),
+						tabBarLabel: () => null,
+					}}
+				/>
+			</BottomTab.Navigator>
+		</NavigationContainer>
+	);
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
