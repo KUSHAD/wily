@@ -1,7 +1,7 @@
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import React from "react";
+import { Image } from "react-native";
 import { BookSearchScreen, BookTransactionScreen } from "./Screens";
 const BottomTab = createBottomTabNavigator();
 export default function App() {
@@ -9,19 +9,33 @@ export default function App() {
 		<NavigationContainer>
 			<BottomTab.Navigator>
 				<BottomTab.Screen
-					name="search"
-					component={BookSearchScreen}
-					options={{
-						tabBarIcon: () => <Ionicons name="search" size={24} color="grey" />,
-						tabBarLabel: () => null,
-					}}
-				/>
-				<BottomTab.Screen
 					name="transaction"
 					component={BookTransactionScreen}
 					options={{
 						tabBarIcon: () => (
-							<FontAwesome5 name="hand-holding" size={24} color="grey" />
+							<Image
+								source={require("./assets/book.png")}
+								style={{
+									width: 40,
+									height: 40,
+								}}
+							/>
+						),
+						tabBarLabel: () => null,
+					}}
+				/>
+				<BottomTab.Screen
+					name="search"
+					component={BookSearchScreen}
+					options={{
+						tabBarIcon: () => (
+							<Image
+								source={require("./assets/searchingbook.png")}
+								style={{
+									width: 40,
+									height: 40,
+								}}
+							/>
 						),
 						tabBarLabel: () => null,
 					}}
