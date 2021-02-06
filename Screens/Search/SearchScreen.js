@@ -1,12 +1,20 @@
 import React, { Component } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default class SearchScreen extends Component {
 	render() {
 		return (
-			<View>
+			<View style={Styles.container}>
 				<Text> Search Screen </Text>
 			</View>
 		);
 	}
 }
+
+const Styles = StyleSheet.create({
+	container: {
+		flex: 1,
+		justifyContent: "center",
+		alignItems: "center",
+	},
+});

@@ -1,109 +1,243 @@
 import { BarCodeScanner } from "expo-barcode-scanner";
 import * as Permissions from "expo-permissions";
-import React, { Component } from "react";
+import firebase from "firebase";
+import React from "react";
 import {
 	Image,
+	KeyboardAvoidingView,
 	StyleSheet,
 	Text,
 	TextInput,
+	ToastAndroid,
 	TouchableOpacity,
 	View,
 } from "react-native";
-export default class TransactionScreen extends Component {
-	constructor(props) {
-		super(props);
+import db from "../../config";
+
+export default class TransactionScreen extends React.Component {
+	constructor() {
+		super();
 		this.state = {
-			hasCameraPermission: null,
+			hasCameraPermissions: null,
 			scanned: false,
-			scannedData: "",
-			buttonState: "normal",
 			scannedBookId: "",
 			scannedStudentId: "",
+			buttonState: "normal",
+			transactionMessage: "",
 		};
 	}
+
 	getCameraPermissions = async (id) => {
 		const { status } = await Permissions.askAsync(Permissions.CAMERA);
+
 		this.setState({
-			hasCameraPermission: status === "granted",
-			scanned: false,
+			/*status === "granted" is true when user has granted permission
+        status === "granted" is false when user has not granted the permission
+      */
+			hasCameraPermissions: status === "granted",
 			buttonState: id,
+			scanned: false,
 		});
 	};
-	handleBarCodeScan = async ({ data }) => {
-		const buttonState = this.state.buttonState;
-		if (buttonState === "bookId") {
+
+	handleBarCodeScanned = async ({ type, data }) => {
+		const { buttonState } = this.state;
+
+		if (buttonState === "BK001") {
 			this.setState({
-				scannedBookId: data,
 				scanned: true,
+				scannedBookId: data,
 				buttonState: "normal",
 			});
-		} else if (buttonState === "studentId") {
+		} else if (buttonState === "ST001") {
 			this.setState({
-				scannedStudentId: data,
 				scanned: true,
+				scannedStudentId: data,
 				buttonState: "normal",
 			});
 		}
 	};
+
+	initiateBookIssue = async () => {
+		//add a transaction
+		db.collection("Transactions").add({
+			studentId: this.state.scannedStudentId,
+			bookId: this.state.scannedBookId,
+			data: firebase.firestore.Timestamp.now().toDate(),
+			transactionType: "Issue",
+		});
+
+		//change book status
+		db.collection("Books").doc(this.state.scannedBookId).update({
+			bookAvailability: false,
+		});
+		//change number of issued books for student
+		db.collection("Students")
+			.doc(this.state.scannedStudentId)
+			.update({
+				numberOfBooksIssued: firebase.firestore.FieldValue.increment(1),
+			});
+
+		this.setState({
+			scannedStudentId: "",
+			scannedBookId: "",
+		});
+	};
+
+	initiateBookReturn = async () => {
+		//add a transaction
+		db.collection("Transactions").add({
+			studentId: this.state.scannedStudentId,
+			bookId: this.state.scannedBookId,
+			date: firebase.firestore.Timestamp.now().toDate(),
+			transactionType: "Return",
+		});
+
+		//change book status
+		db.collection("Books").doc(this.state.scannedBookId).update({
+			bookAvailability: true,
+		});
+
+		//change book status
+		db.collection("Students")
+			.doc(this.state.scannedStudentId)
+			.update({
+				numberOfBooksIssued: firebase.firestore.FieldValue.increment(-1),
+			});
+
+		this.setState({
+			scannedStudentId: "",
+			scannedBookId: "",
+		});
+	};
+
+	handleTransaction = async () => {
+		var transactionMessage = null;
+		db.collection("Books")
+			.doc(this.state.scannedBookId)
+			.get()
+			.then((doc) => {
+				var book = doc.data();
+				if (book.bookAvailability) {
+					this.initiateBookIssue();
+					transactionMessage = "Book Issued";
+					ToastAndroid.show(transactionMessage, ToastAndroid.SHORT);
+				} else {
+					this.initiateBookReturn();
+					transactionMessage = "Book Returned";
+					ToastAndroid.show(transactionMessage, ToastAndroid.SHORT);
+				}
+			});
+
+		this.setState({
+			transactionMessage: transactionMessage,
+		});
+	};
+
 	render() {
-		const {
-			hasCameraPermission,
-			scanned,
-			buttonState,
-			scannedBookId,
-			scannedStudentId,
-		} = this.state;
-		if (buttonState !== "normal" && hasCameraPermission) {
+		const hasCameraPermissions = this.state.hasCameraPermissions;
+		const scanned = this.state.scanned;
+		const buttonState = this.state.buttonState;
+
+		if (buttonState !== "normal" && hasCameraPermissions) {
 			return (
 				<BarCodeScanner
+					onBarCodeScanned={scanned ? undefined : this.handleBarCodeScanned}
 					style={StyleSheet.absoluteFillObject}
-					onBarCodeScanned={scanned ? undefined : this.handleBarCodeScan}
 				/>
 			);
 		} else if (buttonState === "normal") {
 			return (
-				<View style={Styles.container}>
-					<Text style={Styles.title}>Wily</Text>
-					<Image source={require("../../assets/booklogo.jpg")} />
-					<View style={Styles.inputView}>
+				<KeyboardAvoidingView style={styles.container} behavior="padding">
+					<View>
+						<Image
+							source={require("../../assets/booklogo.jpg")}
+							style={{ width: 200, height: 200 }}
+						/>
+						<Text style={{ textAlign: "center", fontSize: 30 }}>Wily</Text>
+					</View>
+					<View style={styles.inputView}>
 						<TextInput
-							value={scannedBookId}
+							onChangeText={(text) =>
+								this.setState({
+									scannedBookId: text,
+								})
+							}
+							style={styles.inputBox}
 							placeholder="Book Id"
-							s
-							style={Styles.inputBox}
+							value={this.state.scannedBookId}
 						/>
 						<TouchableOpacity
-							onPress={() => this.getCameraPermissions("bookId")}
-							style={Styles.scanButton}
+							style={styles.scanButton}
+							onPress={() => {
+								this.getCameraPermissions("ST001");
+							}}
 						>
-							<Text style={Styles.scanButtonText}>Scan Book Id</Text>
+							<Text style={styles.buttonText}>Scan</Text>
 						</TouchableOpacity>
 					</View>
-					<View style={Styles.inputView}>
+
+					<View style={styles.inputView}>
 						<TextInput
-							value={scannedStudentId}
+							onChangeText={(text) =>
+								this.setState({
+									scannedStudentId: text,
+								})
+							}
+							style={styles.inputBox}
 							placeholder="Student Id"
-							style={Styles.inputBox}
+							value={this.state.scannedStudentId}
 						/>
 						<TouchableOpacity
-							onPress={() => this.getCameraPermissions("studentId")}
-							style={Styles.scanButton}
+							style={styles.scanButton}
+							onPress={() => {
+								this.getCameraPermissions("ST001");
+							}}
 						>
-							<Text style={Styles.scanButtonText}>Scan Student Id</Text>
+							<Text style={styles.buttonText}>Scan</Text>
 						</TouchableOpacity>
 					</View>
-				</View>
+					<Text style={styles.transactionAlert}>
+						{this.state.transactionMessage}
+					</Text>
+					<TouchableOpacity
+						style={styles.submitButton}
+						onPress={async () => {
+							var transactionMessage = await this.handleTransaction();
+						}}
+					>
+						<Text style={styles.submitButtonText}>Submit</Text>
+					</TouchableOpacity>
+				</KeyboardAvoidingView>
 			);
 		}
 	}
 }
-const Styles = StyleSheet.create({
+
+const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		justifyContent: "center",
 		alignItems: "center",
 	},
-	inputView: { flexDirection: "row", margin: 20 },
+	displayText: {
+		fontSize: 15,
+		textDecorationLine: "underline",
+	},
+	scanButton: {
+		backgroundColor: "#2196F3",
+		padding: 10,
+		margin: 10,
+	},
+	buttonText: {
+		fontSize: 15,
+		textAlign: "center",
+		marginTop: 10,
+	},
+	inputView: {
+		flexDirection: "row",
+		margin: 20,
+	},
 	inputBox: {
 		width: 200,
 		height: 40,
@@ -113,17 +247,20 @@ const Styles = StyleSheet.create({
 	},
 	scanButton: {
 		backgroundColor: "#66BB6A",
+		width: 50,
 		borderWidth: 1.5,
 		borderLeftWidth: 0,
 	},
-	scanButtonText: {
-		color: "#fff",
-		alignSelf: "center",
-		margin: 5,
+	submitButton: {
+		backgroundColor: "#FBC02D",
+		width: 100,
+		height: 50,
 	},
-	title: {
-		fontSize: 30,
+	submitButtonText: {
+		padding: 10,
+		textAlign: "center",
+		fontSize: 20,
 		fontWeight: "bold",
-		textDecorationLine: "underline",
+		color: "white",
 	},
 });
